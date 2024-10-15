@@ -9,7 +9,7 @@ export enum TokenType {
 }
 
 export enum UnitType {
-  Millimeter = 'millimeter',
+  Millimeter = 'mm',
   Inch = 'inch',
 }
 
