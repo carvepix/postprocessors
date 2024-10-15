@@ -1,17 +1,27 @@
 import { DoOutput, Ternary, UnitType } from '../constants'
 import { Point, PostProcessor, Value } from '../types'
-import { useCommand, useCommands, useComment, useIntegerFormatter, useNumberFormatter, useScalar, useVariable, useVariables } from '../utils'
+import {
+  useCommand,
+  useCommands,
+  useComment,
+  useIntegerFormatter,
+  useNumberFormatter,
+  useScalar,
+  useVariable,
+  useVariables,
+} from '../utils'
 
 export function usePost(unitType: UnitType): PostProcessor {
-  const xyzF = useNumberFormatter({ decimals: 3 })
+  const decimals = unitType === UnitType.Millimeter ? 2 : 3
+  const xyzF = useNumberFormatter({ decimals })
   const intF = useIntegerFormatter()
 
-  const coordinateMode: Value<number> = useScalar()
-  const splindleState: Value<number> = useScalar()
-  const floodMistState: Value<number> = useScalar()
-  const programState: Value<number> = useScalar()
-  const planeState: Value<number> = useScalar()
-  const unitState: Value<number> = useScalar()
+  const coordinateMode: Value<number> = useScalar(decimals)
+  const splindleState: Value<number> = useScalar(decimals)
+  const floodMistState: Value<number> = useScalar(decimals)
+  const programState: Value<number> = useScalar(decimals)
+  const planeState: Value<number> = useScalar(decimals)
+  const unitState: Value<number> = useScalar(decimals)
 
   //commands
   const { M3, M4, M5 } = useCommands('M', [3, 4, 5], DoOutput.IfChanged, intF, splindleState)
@@ -32,20 +42,31 @@ export function usePost(unitType: UnitType): PostProcessor {
   const T = useVariable('T', DoOutput.IfChanged, intF)
 
   function isAbsolute() {
-    return coordinateMode.get() === G90.code()
+    return coordinateMode.get() === G90.code
   }
 
   const begin = () => [[G90, G94], [G17], [unitType === UnitType.Millimeter ? G21 : G20]]
 
-  const moveToMachineOrigin = () => [
-    // first move to Z origin to avoid any collision
-    [G28, altPos.Z.set(0)],
-    [G28, altPos.X.set(0), altPos.Y.set(0), altPos.Z.set(0)],
-  ]
+  const moveToMachineOrigin = () => {
+    altPos.X.set(0)
+    altPos.Y.set(0)
+    altPos.Z.set(0)
 
-  const loadTool = (tool: number) => [[T.set(tool)]]
+    return [
+      [G28, altPos.Z],
+      [G28, altPos.X, altPos.Y, altPos.Z],
+    ]
+  }
 
-  const setSpindleSpeed = (speed: number, clockwise: boolean = true) => [[S.set(speed), clockwise ? M3 : M4]]
+  const loadTool = (tool: number) => {
+    T.set(tool)
+    return [[T]]
+  }
+
+  const setSpindleSpeed = (speed: number, clockwise: boolean = true) => {
+    S.set(speed)
+    return [[S, clockwise ? M3 : M4]]
+  }
 
   const stopSpindle = () => [[M5]]
 
@@ -63,20 +84,31 @@ export function usePost(unitType: UnitType): PostProcessor {
   }
 
   const fastMoveTo = (point: Point) => {
-    const { x, y, z } = point
     if (isAbsolute()) {
-      return [[G0, absPos.X.set(x), absPos.Y.set(y), absPos.Z.set(z)]]
+      absPos.X.set(point.x)
+      absPos.Y.set(point.y)
+      absPos.Z.set(point.z)
+      return [[G0, absPos.X, absPos.Y, absPos.Z]]
     } else {
-      return [[G0, incPos.X.set(x), incPos.Y.set(y), incPos.Z.set(z)]]
+      incPos.X.set(point.x)
+      incPos.Y.set(point.y)
+      incPos.Z.set(point.z)
+      return [[G0, incPos.X, incPos.Y, incPos.Z]]
     }
   }
 
   const moveTo = (point: Point, f: number) => {
-    const { x, y, z } = point
+    F.set(f)
     if (isAbsolute()) {
-      return [[G1, absPos.X.set(x), absPos.Y.set(y), absPos.Z.set(z), F.set(f)]]
+      absPos.X.set(point.x)
+      absPos.Y.set(point.y)
+      absPos.Z.set(point.z)
+      return [[G1, absPos.X, absPos.Y, absPos.Z, F]]
     } else {
-      return [[G1, incPos.X.set(x), incPos.Y.set(y), incPos.Z.set(z), F.set(f)]]
+      incPos.X.set(point.x)
+      incPos.Y.set(point.y)
+      incPos.Z.set(point.z)
+      return [[G1, incPos.X, incPos.Y, incPos.Z, F]]
     }
   }
 
@@ -91,39 +123,65 @@ export function usePost(unitType: UnitType): PostProcessor {
   return {
     extension: 'nc',
     description: 'Generic milling post for Grbl.',
-    vendor: {
-      name: 'grbl',
-      url: 'https://github.com/gnea/grbl/wiki',
-    },
+    id: 'grbl',
+    name: 'Grbl',
     machines: [
       {
         name: 'UltimateBee',
+        hasSpindle: Ternary.Maybe,
+        hasToolChanger: Ternary.No,
         vendor: {
-          name: 'Bulkman 3d',
-          url: 'https://bulkman3d.com',
-        },
-      },{
-        name: 'QueenBee',
-        vendor: {
-          name: 'Bulkman 3d',
-          url: 'https://bulkman3d.com',
-        },
-      },{
-        name: 'WorkBee',
-        vendor: {
-          name: 'Bulkman 3d',
+          name: 'Bulkman3d',
           url: 'https://bulkman3d.com',
         },
       },
       {
-        name: 'Generic 3018',
+        name: 'Oxman',
+        hasSpindle: Ternary.Maybe,
+        hasToolChanger: Ternary.No,
+        vendor: {
+          name: 'Bulkman3d',
+          url: 'https://bulkman3d.com',
+        },
+      },
+      {
+        name: 'QueenBee',
+        hasSpindle: Ternary.Maybe,
+        hasToolChanger: Ternary.No,
+        vendor: {
+          name: 'Bulkman3d',
+          url: 'https://bulkman3d.com',
+        },
+      },
+      {
+        name: 'WorkBee',
+        hasSpindle: Ternary.Maybe,
+        hasToolChanger: Ternary.No,
+        vendor: {
+          name: 'Bulkman3d',
+          url: 'https://bulkman3d.com',
+        },
+      },
+      {
+        name: 'Lead',
+        hasSpindle: Ternary.Maybe,
+        hasToolChanger: Ternary.No,
+        vendor: {
+          name: 'Bulkman3d',
+          url: 'https://bulkman3d.com',
+        },
+      },
+      {
+        name: '3018',
+        hasSpindle: Ternary.Yes,
+        hasToolChanger: Ternary.No,
       },
     ],
     version: '1.0',
-    feedUnit: `${unitType} per minute`,
-    lineFormatSpec: { newLine: `\n\r` },
-    hasSpindle: Ternary.Maybe,
-    hasToolChanger: Ternary.Maybe,
+    unitType,
+    feedUnit: `${unitType}/min`,
+    lineFormatSpec: { newLine: `\r\n` },
+
     begin,
     moveToMachineOrigin,
     loadTool,

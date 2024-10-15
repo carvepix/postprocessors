@@ -1,21 +1,21 @@
-import { DoOutput, Ternary, TokenType } from './constants'
+import { DoOutput, Ternary, TokenType, UnitType } from './constants'
 
 export interface Token {
-  prefix(): string
-  code(): number
-  formatter(): TokenFormatter
-  set(v: number | undefined): Token
+  readonly prefix : string
+  readonly code: number
+  readonly format: TokenFormatter
+  set(v: number | undefined): void
   get(): number | undefined
   outputValue(): number | undefined
   commit(): void
   reset(): void
   changed(): boolean
-  type(): TokenType
-  doOutput: DoOutput
+  readonly type: TokenType
+  readonly doOutput: DoOutput
 }
 
 export interface Value<T> {
-  set: (value: number) => Value<T>
+  set: (value: number) => void
   commit: () => void
   reset(): void
   changed: () => boolean
@@ -34,14 +34,14 @@ export interface Writer {
 }
 
 export interface NumberFormatterSpec {
-  readonly decimals: number
+  readonly decimals: number,
   readonly forceSign: boolean
   readonly separator: string
   readonly scale: number
   readonly offset: number
   readonly forceSeparator: boolean
-  readonly minimum?: number
-  readonly maximum?: number
+  readonly minimum: number
+  readonly maximum: number
   readonly minDigitsLeft?: number
   readonly minDigitsRight?: number
 }
@@ -75,23 +75,25 @@ export interface Vector3 {
 }
 
 export interface Machine {
-  name: string,
-  workingDimensions?: Vector3,
-  vendor?: Vendor,
-  capability?: number
+  readonly name?: string,
+  readonly hasSpindle: Ternary,
+  readonly hasToolChanger: Ternary,
+  readonly workingDimensions?: Vector3
+  readonly vendor?: Vendor
+  readonly capability?: number
 }
 
 export interface PostProcessor {
   readonly extension: string
-  readonly vendor: Vendor
+  readonly id: string
+  readonly name: string
   readonly description: string
   readonly machines: Machine[]
   readonly version: string
+  readonly unitType: UnitType
   readonly feedUnit: string
   readonly lineFormatSpec: Partial<LineFormatSpec>
   readonly lineNumberFormatSpec?: Partial<LineNumberFormatSpec>
-  readonly hasSpindle: Ternary
-  readonly hasToolChanger: Ternary
   readonly header?: string
   readonly footer?: string
   begin: () => Token[][]
@@ -111,7 +113,7 @@ export interface PostProcessor {
 }
 
 export interface Point {
-  readonly x?: number
-  readonly y?: number
-  readonly z?: number
+  readonly x: number
+  readonly y: number
+  readonly z: number
 }
